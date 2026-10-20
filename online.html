@@ -1,0 +1,771 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Song Guesser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0e0d12; --panel:#18161f; --panel2:#221f2b; --line:#2f2b3b;
+    --text:#f3f0f8; --muted:#9a93ab; --accent:#ffb547; --accent2:#ff5c8a;
+    --good:#5be39a; --bad:#ff5c6c;
+    --t-easy:#5be39a; --t-medium:#7cc4ff; --t-hard:#ffb547; --t-expert:#ff7a4d; --t-impossible:#c77dff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Space Grotesk',system-ui,sans-serif;min-height:100vh}
+  .wrap{max-width:640px;margin:0 auto;padding:24px 16px 60px}
+  h1{font-size:30px;margin:8px 0 4px;letter-spacing:-.5px}
+  h1 span{color:var(--accent)}
+  h2{font-size:18px;margin:0 0 12px}
+  p,li{color:var(--muted);line-height:1.5}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;margin:16px 0}
+  .hidden{display:none!important}
+  button{font:inherit;cursor:pointer;border:0;border-radius:12px;padding:12px 16px;background:var(--panel2);color:var(--text);border:1px solid var(--line);transition:transform .08s, background .15s}
+  button:hover:not(:disabled){background:#2c2838}
+  button:active:not(:disabled){transform:scale(.97)}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  button.primary{background:var(--accent);color:#1a1205;border-color:transparent;font-weight:700}
+  button.primary:hover:not(:disabled){background:#ffc56e}
+  button.ghost{background:transparent}
+  input[type=text],input[type=number]{font:inherit;width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:12px 14px;outline:none}
+  input:focus{border-color:var(--accent)}
+  code{background:var(--panel2);padding:2px 6px;border-radius:6px;color:var(--text);font-size:13px;word-break:break-all}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .grow{flex:1}
+  .small{font-size:13px}
+  .err{color:var(--bad)}
+  .tiers{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+  .tier{text-align:left;padding:14px;border-radius:14px}
+  .tier b{display:block;font-size:16px}
+  .tier small{color:var(--muted)}
+  .tier.sel{outline:2px solid var(--accent)}
+  .durs{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+  .durs input{padding:8px 6px;text-align:center;font-size:14px}
+  .durs input:disabled{opacity:.3}
+  .hud{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .pill{display:inline-block;padding:4px 10px;border-radius:999px;font-size:13px;font-weight:700;color:#111}
+  .bar{display:flex;gap:4px;margin:18px 0 6px}
+  .seg{flex:1;height:14px;border-radius:5px;background:var(--panel2);position:relative;overflow:hidden;border:1px solid var(--line)}
+  .seg.open{background:#3a3350}
+  .seg .fill{position:absolute;inset:0;width:0;background:var(--accent)}
+  .seglabels{display:flex;gap:4px}
+  .seglabels span{flex:1;text-align:center;font-size:11px;color:var(--muted)}
+  .seglabels span.open{color:var(--text)}
+  .playbtn{width:84px;height:84px;border-radius:50%;font-size:30px;display:grid;place-items:center;margin:18px auto;background:var(--accent);color:#1a1205;border:0}
+  .playbtn:hover:not(:disabled){background:#ffc56e}
+  .guesses{display:flex;flex-direction:column;gap:6px;margin:10px 0 14px}
+  .g{padding:10px 12px;border-radius:10px;border:1px solid var(--line);font-size:14px;min-height:40px;color:var(--muted)}
+  .g.wrong{color:var(--bad);border-color:#5a2a33}
+  .g.skip{color:var(--muted);border-style:dashed}
+  .g.right{color:var(--good);border-color:#24553b}
+  .ac{position:relative}
+  .ac-list{position:absolute;left:0;right:0;bottom:calc(100% + 6px);background:var(--panel2);border:1px solid var(--line);border-radius:12px;overflow:hidden;z-index:5;max-height:300px;overflow-y:auto}
+  .ac-item{padding:10px 12px;cursor:pointer;font-size:14px;border-bottom:1px solid var(--line)}
+  .ac-item:last-child{border-bottom:0}
+  .ac-item span{color:var(--muted)}
+  .ac-item.hl,.ac-item:hover{background:#342e45}
+  .reveal{display:flex;gap:14px;align-items:center}
+  .reveal img{width:96px;height:96px;border-radius:10px;object-fit:cover;background:var(--panel2)}
+  .reveal .t{font-size:20px;font-weight:700;color:var(--text)}
+  .big{font-size:42px;font-weight:700;color:var(--accent)}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  td{padding:8px 4px;border-bottom:1px solid var(--line);color:var(--muted)}
+  td.r{text-align:right;color:var(--text)}
+  .status{font-size:13px;color:var(--muted);text-align:center;min-height:18px}
+  ol li{margin-bottom:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Song <span>Guesser</span></h1>
+  <p class="small" style="margin-top:0">Name the song from the tiniest slice you can.</p>
+
+  <!-- SETUP -->
+  <section id="scr-setup" class="panel hidden">
+    <h2>Connect your Spotify</h2>
+    <div id="setup-warn" class="err small"></div>
+    <ol class="small">
+      <li>Go to <code>developer.spotify.com/dashboard</code> and create an app.</li>
+      <li>Under APIs used, tick <b>Web API</b> and <b>Web Playback SDK</b>.</li>
+      <li>Add this exact Redirect URI:<br><code id="redir"></code></li>
+      <li>Copy the app's <b>Client ID</b> and paste it below.</li>
+    </ol>
+    <p class="small">Spotify Premium is required for playback.</p>
+    <div class="row">
+      <input id="cid" type="text" class="grow" placeholder="Client ID" autocomplete="off">
+      <button id="btn-login" class="primary">Log in with Spotify</button>
+    </div>
+  </section>
+
+  <!-- MENU -->
+  <section id="scr-menu" class="hidden">
+    <div class="panel">
+      <h2>Mode</h2>
+      <div class="tiers" id="mode-list"></div>
+      <div class="row" style="margin-top:14px">
+        <label class="small grow" id="count-label" for="count">Songs</label>
+        <input id="count" type="number" min="1" max="30" value="10" style="width:90px">
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Stages</h2>
+      <p class="small" style="margin-top:0">Each stage is one attempt and one longer listen. Fewer stages = harder.</p>
+      <div class="row" style="margin-bottom:12px">
+        <input id="stages" type="range" min="1" max="6" value="6" class="grow">
+        <b id="stages-n" style="width:30px;text-align:right">6</b>
+      </div>
+      <div class="durs" id="durs"></div>
+      <p class="small" style="margin-bottom:0">Clip length per stage, in seconds.</p>
+    </div>
+    <div class="row">
+      <button id="btn-start" class="primary grow" disabled>Connecting player…</button>
+      <button id="btn-logout" class="ghost">Log out</button>
+    </div>
+    <p id="player-status" class="status"></p>
+  </section>
+
+  <!-- GAME -->
+  <section id="scr-game" class="hidden">
+    <div class="panel">
+      <div class="hud">
+        <span id="tier-pill" class="pill">Easy</span>
+        <span class="small" id="progress">Song 1 / 10</span>
+        <span class="small">Score <b id="score" style="color:var(--text)">0</b></span>
+      </div>
+      <div class="bar" id="bar"></div>
+      <div class="seglabels" id="seglabels"></div>
+      <button class="playbtn" id="btn-play" disabled>▶</button>
+      <p class="status" id="game-status">Loading song…</p>
+
+      <div id="guess-area">
+        <div class="guesses" id="guesses"></div>
+        <div class="ac">
+          <div class="ac-list hidden" id="ac-list"></div>
+          <input id="guess" type="text" placeholder="Type a song name…" autocomplete="off">
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button id="btn-skip" class="grow">Skip</button>
+          <button id="btn-giveup" class="ghost">Give up</button>
+          <button id="btn-submit" class="primary grow">Guess</button>
+        </div>
+      </div>
+
+      <div id="reveal-area" class="hidden">
+        <div class="guesses" id="guesses2"></div>
+        <p id="verdict" style="font-weight:700;margin:4px 0 12px"></p>
+        <div class="reveal">
+          <img id="rv-img" alt="">
+          <div>
+            <div class="t" id="rv-title"></div>
+            <div id="rv-artist"></div>
+            <div class="small" id="rv-album"></div>
+          </div>
+        </div>
+        <div class="row" style="margin-top:14px">
+          <button id="btn-full" class="grow">▶ Play the song</button>
+          <button id="btn-next" class="primary grow">Next →</button>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button id="btn-mark" class="ghost grow small">🎵 Music starts here</button>
+          <button id="btn-unmark" class="ghost small hidden">Reset</button>
+        </div>
+        <p class="small" id="mark-note" style="margin:6px 0 0;text-align:center"></p>
+      </div>
+    </div>
+    <div class="row"><button id="btn-quit" class="ghost small">Quit to menu</button></div>
+  </section>
+
+  <!-- SUMMARY -->
+  <section id="scr-summary" class="hidden">
+    <div class="panel" style="text-align:center">
+      <p style="margin:0">Final score</p>
+      <div class="big" id="final-score">0</div>
+      <p id="final-line"></p>
+    </div>
+    <div class="panel"><table id="final-table"></table></div>
+    <button id="btn-again" class="primary" style="width:100%">Back to menu</button>
+  </section>
+</div>
+
+<script>
+/* ================= SONG POOLS =================
+   Spotify no longer exposes popularity/stream data to apps,
+   so tiers are hand-curated estimates. Edit freely: [title, artist]
+   or [title, artist, secondsWhereMusicStarts] for songs with a silent intro. */
+const TIERS = [
+  { id:'easy', name:'Easy', label:'Billion-stream giants', mult:1, color:'var(--t-easy)', songs:[
+    ['Blinding Lights','The Weeknd'],['Shape of You','Ed Sheeran'],['Someone You Loved','Lewis Capaldi'],
+    ['Sunflower','Post Malone'],['As It Was','Harry Styles'],['Starboy','The Weeknd'],['One Dance','Drake'],
+    ['Closer','The Chainsmokers'],['Believer','Imagine Dragons'],['Perfect','Ed Sheeran'],['Heat Waves','Glass Animals'],
+    ['Dance Monkey','Tones And I'],['Bohemian Rhapsody','Queen'],['Mr. Brightside','The Killers'],
+    ['Watermelon Sugar','Harry Styles'],['Shallow','Lady Gaga'],['rockstar','Post Malone'],
+    ['Say You Won\'t Let Go','James Arthur'],['Riptide','Vance Joy'],['Sweater Weather','The Neighbourhood'],
+    ['Levitating','Dua Lipa'],['bad guy','Billie Eilish'],['Flowers','Miley Cyrus'],['Cruel Summer','Taylor Swift'],
+    ['Smells Like Teen Spirit','Nirvana'],['Take On Me','a-ha'],['Every Breath You Take','The Police'],
+    ['Wake Me Up','Avicii'],['Somebody That I Used To Know','Gotye'],['Lose Yourself','Eminem']]},
+  { id:'medium', name:'Medium', label:'Big hits', mult:1.5, color:'var(--t-medium)', songs:[
+    ['Teenage Dirtbag','Wheatus'],['Electric Feel','MGMT'],['Mr. Blue Sky','Electric Light Orchestra'],
+    ['Hey Ya!','Outkast'],['Midnight City','M83'],['Video Games','Lana Del Rey'],['Paper Planes','M.I.A.'],
+    ['Royals','Lorde'],['Pompeii','Bastille'],['Ho Hey','The Lumineers'],['Little Talks','Of Monsters and Men'],
+    ['Young Folks','Peter Bjorn and John'],['Dog Days Are Over','Florence + The Machine'],
+    ['Seven Nation Army','The White Stripes'],['Use Somebody','Kings of Leon'],['Titanium','David Guetta'],
+    ['Alors on danse','Stromae'],['Papaoutai','Stromae'],['Feel Good Inc.','Gorillaz'],['Toxic','Britney Spears'],
+    ['Pumped Up Kicks','Foster The People'],['Get Lucky','Daft Punk'],['Tongue Tied','GROUPLOVE'],
+    ['Dakiti','Bad Bunny'],['Kids','MGMT']]},
+  { id:'hard', name:'Hard', label:'Known if you know', mult:2, color:'var(--t-hard)', songs:[
+    ['Myth','Beach House'],['Two Weeks','Grizzly Bear'],['Oblivion','Grimes'],['Hoppípolla','Sigur Rós'],
+    ['Holocene','Bon Iver'],['Time to Pretend','MGMT'],['Lisztomania','Phoenix'],['Rebellion (Lies)','Arcade Fire'],
+    ['Bloodbuzz Ohio','The National'],['Heartbeats','The Knife'],['Dance Yrself Clean','LCD Soundsystem'],
+    ['Nantes','Beirut'],['Dashboard','Modest Mouse'],['Ceremony','New Order'],['Tous les mêmes','Stromae'],
+    ['Brazil','Declan McKenna'],['Cigarette Daydreams','Cage The Elephant'],['Nikes','Frank Ocean'],
+    ['Teardrop','Massive Attack'],['Breezeblocks','alt-J']]},
+  { id:'expert', name:'Expert', label:'Album cuts & cult hits', mult:3, color:'var(--t-expert)', songs:[
+    ['Windowlicker','Aphex Twin'],['Roygbiv','Boards of Canada'],['Archangel','Burial'],['Marquee Moon','Television'],
+    ['Hyperballad','Björk'],['Glósóli','Sigur Rós'],['Alone in Kyoto','Air'],['Dayvan Cowboy','Boards of Canada'],
+    ['Holland, 1945','Neutral Milk Hotel'],['Wolf Like Me','TV On The Radio'],['Suds & Soda','dEUS'],
+    ['Instant Street','dEUS'],['Hand Covers Bruise','Trent Reznor'],['Plainsong','The Cure'],
+    ['Sister Ray','The Velvet Underground'],['Come In Alone','my bloody valentine']]},
+  { id:'impossible', name:'Impossible', label:'Deep cuts', mult:5, color:'var(--t-impossible)', songs:[
+    ['Fell Off the Floor, Man','dEUS'],['Oh Comely','Neutral Milk Hotel'],['The Sad Mafioso','Godspeed You! Black Emperor'],
+    ['Good Morning, Captain','Slint'],['New Grass','Talk Talk'],['Come On Let\'s Go','Broadcast'],
+    ['French Disko','Stereolab'],['Real Death','Mount Eerie'],['This Is How We Walk on the Moon','Arthur Russell'],
+    ['Heavy Water/I\'d Rather Be Sleeping','Grouper'],['Xtal','Aphex Twin'],['Olson','Boards of Canada'],
+    ['Venus','Television'],['Ágætis byrjun','Sigur Rós']]},
+];
+const MODES = [
+  { id:'ladder', name:'Ladder', label:'Easy → Impossible', color:'var(--accent)' },
+  ...TIERS,
+  { id:'mine', name:'Your Top Tracks', label:'Your most played', mult:1, color:'var(--accent2)' },
+];
+
+/* ================= HELPERS ================= */
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem('sg_'+k); return v===null ? d : JSON.parse(v);}catch{return d;} },
+  set(k, v){ try{ localStorage.setItem('sg_'+k, JSON.stringify(v)); }catch{} },
+  del(k){ try{ localStorage.removeItem('sg_'+k); }catch{} },
+};
+const shuffle = a => { a = a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
+const norm = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+  .replace(/\(.*?\)|\[.*?\]/g,'').replace(/\s-\s.*$/,'').replace(/\bfeat\..*$/,'')
+  .replace(/&/g,'and').replace(/[^a-z0-9]+/g,' ').trim();
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtDur = s => s < 1 ? s+'s' : (Number.isInteger(s) ? s+'s' : s+'s');
+function show(id){ ['scr-setup','scr-menu','scr-game','scr-summary'].forEach(s => $(s).classList.toggle('hidden', s!==id)); }
+
+/* ================= AUTH (PKCE) ================= */
+// For a hosted/public version: paste your Client ID here and visitors
+// will only see a "Log in with Spotify" button. Leave empty to ask for it.
+const CLIENT_ID = 'ad367e90a2974365b89c77d4dedb1699';
+
+const SCOPES = 'streaming user-read-email user-read-private user-modify-playback-state user-read-playback-state user-top-read';
+const REDIRECT = location.origin + location.pathname;
+
+function b64url(buf){ return btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+function randStr(n){ const a = new Uint8Array(n); crypto.getRandomValues(a); return Array.from(a, x => 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[x%62]).join(''); }
+
+async function login(){
+  const cid = CLIENT_ID || $('cid').value.trim();
+  if(!cid){ $('setup-warn').textContent = 'Paste your Client ID first.'; return; }
+  store.set('cid', cid);
+  const verifier = randStr(64);
+  store.set('verifier', verifier);
+  const challenge = b64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
+  const p = new URLSearchParams({ response_type:'code', client_id:cid, scope:SCOPES, code_challenge_method:'S256', code_challenge:challenge, redirect_uri:REDIRECT });
+  location.href = 'https://accounts.spotify.com/authorize?' + p;
+}
+
+async function tokenRequest(body){
+  const r = await fetch('https://accounts.spotify.com/api/token', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:new URLSearchParams(body) });
+  const j = await r.json();
+  if(!r.ok) throw new Error(j.error_description || j.error || 'Token request failed');
+  store.set('tok', { access:j.access_token, refresh:j.refresh_token || store.get('tok',{}).refresh, exp:Date.now() + (j.expires_in-60)*1000 });
+}
+
+async function handleCallback(){
+  const q = new URLSearchParams(location.search);
+  if(q.get('error')){ history.replaceState(null,'',REDIRECT); throw new Error('Spotify login was cancelled or refused: '+q.get('error')); }
+  const code = q.get('code');
+  if(!code) return;
+  history.replaceState(null,'',REDIRECT);
+  await tokenRequest({ client_id:store.get('cid'), grant_type:'authorization_code', code, redirect_uri:REDIRECT, code_verifier:store.get('verifier') });
+}
+
+async function getToken(){
+  const t = store.get('tok');
+  if(!t) throw new Error('Not logged in');
+  if(Date.now() < t.exp) return t.access;
+  await tokenRequest({ client_id:store.get('cid'), grant_type:'refresh_token', refresh_token:t.refresh });
+  return store.get('tok').access;
+}
+
+async function api(path, opts={}){
+  const tok = await getToken();
+  const r = await fetch('https://api.spotify.com/v1'+path, { ...opts, headers:{ Authorization:'Bearer '+tok, 'Content-Type':'application/json', ...(opts.headers||{}) } });
+  if(r.status === 204) return null;
+  const text = await r.text();
+  let j = null; try{ j = text ? JSON.parse(text) : null; }catch{}
+  if(!r.ok){ const e = new Error((j && j.error && j.error.message) || ('HTTP '+r.status)); e.status = r.status; throw e; }
+  return j;
+}
+
+/* ================= PLAYER ================= */
+let player = null, deviceId = null, volume = 0.8, playerReady = false;
+
+function loadSDK(){
+  window.onSpotifyWebPlaybackSDKReady = () => {
+    player = new Spotify.Player({ name:'Song Guesser', getOAuthToken: cb => getToken().then(cb).catch(()=>{}), volume });
+    player.addListener('ready', async ({ device_id }) => {
+      deviceId = device_id;
+      try{ await api('/me/player', { method:'PUT', body:JSON.stringify({ device_ids:[deviceId], play:false }) }); }catch{}
+      playerReady = true;
+      $('btn-start').disabled = false; $('btn-start').textContent = 'Start game';
+      $('player-status').textContent = '';
+    });
+    player.addListener('not_ready', () => { playerReady = false; $('player-status').textContent = 'Player went offline — reload the page.'; });
+    player.addListener('initialization_error', ({message}) => $('player-status').textContent = 'This browser can\'t play Spotify audio (try Chrome, Edge or Firefox). '+message);
+    player.addListener('authentication_error', () => { store.del('tok'); $('player-status').textContent = 'Login expired — reload to log in again.'; });
+    player.addListener('account_error', () => $('player-status').textContent = 'Spotify Premium is required for in-browser playback.');
+    installGuard();
+    player.connect();
+  };
+  const s = document.createElement('script'); s.src = 'https://sdk.scdn.co/spotify-player.js'; document.body.appendChild(s);
+}
+
+// Hide the track name from OS media controls / lock screen while guessing
+let hideMeta = true;
+setInterval(() => {
+  if(hideMeta && 'mediaSession' in navigator && window.MediaMetadata){
+    try{ navigator.mediaSession.metadata = new MediaMetadata({ title:'Mystery song', artist:'Song Guesser' }); }catch{}
+  }
+}, 400);
+
+/* Audio guard: the player stays muted and paused unless a clip or the
+   revealed full song is meant to be playing. Any stray playback is stopped. */
+let allowAudio = false, priming = false;
+function installGuard(){
+  player.addListener('player_state_changed', s => {
+    if(s && !s.paused && !allowAudio && !priming){ player.setVolume(0); player.pause(); }
+  });
+}
+
+function sameTrack(s, track){
+  const ct = s && s.track_window && s.track_window.current_track;
+  if(!ct) return false;
+  return ct.uri === track.uri || ct.id === track.id ||
+    (ct.linked_from && ct.linked_from.uri === track.uri) || norm(ct.name) === norm(track.name);
+}
+
+async function waitPlaying(timeout=8000, track=null){
+  const t0 = performance.now();
+  while(performance.now()-t0 < timeout){
+    const s = await player.getCurrentState();
+    if(s && !s.paused && (!track || sameTrack(s, track))) return true;
+    await sleep(15);
+  }
+  return false;
+}
+
+async function ensurePaused(){
+  for(let i=0;i<40;i++){
+    const s = await player.getCurrentState();
+    if(!s || s.paused) return;
+    await player.pause();
+    await sleep(50);
+  }
+}
+
+// Where the music actually starts, per track (ms). Marked by you on the reveal screen.
+let offsets = store.get('offsets', {});
+function startOf(item){
+  const t = item.track;
+  if(t && offsets[t.id] != null) return offsets[t.id];
+  if(item.ref && item.ref[2]) return item.ref[2]*1000;
+  return 0;
+}
+
+// Load the track onto our device muted, then park it at the start point
+async function prime(track, startMs){
+  priming = true; allowAudio = false;
+  try{
+    await player.setVolume(0);
+    await api('/me/player/play?device_id='+deviceId, { method:'PUT', body:JSON.stringify({ uris:[track.uri], position_ms:startMs }) });
+    const ok = await waitPlaying(8000, track);
+    await player.pause();
+    await ensurePaused();
+    await player.seek(startMs);
+    if(!ok) throw new Error('Track did not start');
+  } finally { priming = false; }
+}
+
+let clipBusy = false, clipAbort = false;
+async function playClip(seconds, onProgress, startMs=0){
+  if(clipBusy) return; clipBusy = true; clipAbort = false;
+  try{
+    allowAudio = true;
+    await player.seek(startMs);
+    await player.setVolume(volume);
+    await player.resume();
+    await waitPlaying(3000);
+    const ms = seconds*1000, t0 = performance.now();
+    await new Promise(res => {
+      const tick = () => {
+        if(clipAbort) return res();
+        const el = performance.now()-t0;
+        onProgress && onProgress(Math.min(1, el/ms));
+        if(el >= ms) return res();
+        if(ms - el < 20) setTimeout(res, Math.max(0, ms-el)); else requestAnimationFrame(tick);
+      };
+      tick();
+    });
+    if(clipAbort) return; // round ended mid-clip: the full song takes over
+    allowAudio = false;
+    await player.pause();
+    await player.setVolume(0);
+    onProgress && onProgress(1);
+    await ensurePaused();
+    await player.seek(startMs);
+  } finally {
+    clipBusy = false;
+    if(!clipAbort) allowAudio = false;
+  }
+}
+
+/* ================= SETTINGS UI ================= */
+const DEFAULT_DURS = [0.01, 0.1, 0.5, 2, 8, 15];
+let settings = store.get('settings', { mode:'ladder', count:10, stages:6, durs:DEFAULT_DURS });
+
+function renderMenu(){
+  $('mode-list').innerHTML = MODES.map(m => `<button class="tier ${settings.mode===m.id?'sel':''}" data-mode="${m.id}">
+      <b style="color:${m.color}">${esc(m.name)}</b><small>${esc(m.label)}</small></button>`).join('');
+  $('mode-list').querySelectorAll('button').forEach(b => b.onclick = () => { settings.mode = b.dataset.mode; save(); renderMenu(); });
+  $('count-label').textContent = settings.mode==='ladder' ? 'Songs per difficulty' : 'Songs';
+  $('count').value = settings.count;
+  $('stages').value = settings.stages; $('stages-n').textContent = settings.stages;
+  $('durs').innerHTML = settings.durs.map((d,i) => `<input type="number" step="0.01" min="0.01" max="60" value="${d}" data-i="${i}" ${i>=settings.stages?'disabled':''}>`).join('');
+  $('durs').querySelectorAll('input').forEach(inp => inp.onchange = () => {
+    const v = Math.max(0.01, Math.min(60, parseFloat(inp.value)||DEFAULT_DURS[inp.dataset.i]));
+    settings.durs[inp.dataset.i] = v; inp.value = v; save();
+  });
+}
+function save(){ store.set('settings', settings); }
+$('stages').oninput = e => { settings.stages = +e.target.value; save(); renderMenu(); };
+$('count').onchange = e => { settings.count = Math.max(1, Math.min(30, parseInt(e.target.value)||10)); save(); renderMenu(); };
+
+/* ================= GAME ================= */
+let G = null;
+
+async function resolveTrack(title, artist){
+  const q = `track:${title} artist:${artist}`;
+  const j = await api('/search?type=track&limit=5&q='+encodeURIComponent(q));
+  const items = (j && j.tracks && j.tracks.items) || [];
+  return items.find(t => norm(t.name) === norm(title)) || items[0] || null;
+}
+
+async function startGame(){
+  if(!playerReady) return;
+  player.activateElement && player.activateElement();
+  const n = settings.count;
+  let queue = [];
+  if(settings.mode === 'ladder'){
+    TIERS.forEach(t => shuffle(t.songs).slice(0, n).forEach(s => queue.push({ tier:t, ref:s })));
+  } else if(settings.mode === 'mine'){
+    try{
+      const j = await api('/me/top/tracks?limit=50&time_range=medium_term');
+      const tier = MODES.find(m => m.id==='mine');
+      queue = shuffle(j.items || []).slice(0, n).map(t => ({ tier, track:t }));
+      if(!queue.length) throw new Error('No top tracks found on your account yet.');
+    }catch(e){ $('player-status').textContent = 'Couldn\'t load your top tracks: '+e.message; return; }
+  } else {
+    const t = TIERS.find(t => t.id === settings.mode);
+    queue = shuffle(t.songs).slice(0, n).map(s => ({ tier:t, ref:s }));
+  }
+  G = { queue, idx:0, score:0, stages:settings.stages, durs:settings.durs.slice(0, settings.stages), results:[] };
+  show('scr-game');
+  buildBar();
+  loadSong();
+}
+
+function buildBar(){
+  $('bar').innerHTML = G.durs.map(() => `<div class="seg"><div class="fill"></div></div>`).join('');
+  $('seglabels').innerHTML = G.durs.map(d => `<span>${fmtDur(d)}</span>`).join('');
+}
+
+function cur(){ return G.queue[G.idx]; }
+
+async function loadSong(){
+  const item = cur();
+  hideMeta = true;
+  G.stage = 0; G.guesses = []; G.done = false;
+  $('guess-area').classList.remove('hidden'); $('reveal-area').classList.add('hidden');
+  $('guess').value = ''; closeAC();
+  $('tier-pill').textContent = item.tier.name; $('tier-pill').style.background = item.tier.color;
+  $('progress').textContent = `Song ${G.idx+1} / ${G.queue.length}`;
+  $('score').textContent = Math.round(G.score);
+  renderStage(); renderGuesses();
+  setControls(false);
+  $('game-status').textContent = 'Loading song…';
+  try{
+    if(!item.track){
+      item.track = await resolveTrack(item.ref[0], item.ref[1]);
+      if(!item.track) throw new Error('not found');
+    }
+    G.startMs = startOf(item);
+    await prime(item.track, G.startMs);
+    $('game-status').textContent = 'Press play. Listen carefully.';
+    setControls(true);
+  }catch(e){
+    console.warn(e);
+    $('game-status').textContent = 'Couldn\'t load that one — skipping…';
+    G.queue.splice(G.idx, 1);
+    await sleep(900);
+    if(G.idx >= G.queue.length) return finish();
+    loadSong();
+  }
+}
+
+function setControls(on){
+  ['btn-play','btn-skip','btn-giveup','btn-submit','guess'].forEach(id => $(id).disabled = !on);
+}
+
+function renderStage(){
+  const segs = $('bar').children, labels = $('seglabels').children;
+  for(let i=0;i<segs.length;i++){
+    segs[i].classList.toggle('open', i <= G.stage);
+    segs[i].firstElementChild.style.width = '0';
+    labels[i].classList.toggle('open', i <= G.stage);
+  }
+  const next = G.durs[G.stage+1];
+  $('btn-skip').textContent = next !== undefined ? `Skip (+${fmtDur(next)})` : 'Skip (last try)';
+}
+
+function renderGuesses(target='guesses'){
+  const rows = [];
+  for(let i=0;i<G.stages;i++){
+    const g = G.guesses[i];
+    if(!g) rows.push(`<div class="g"></div>`);
+    else rows.push(`<div class="g ${g.kind}">${g.kind==='right'?'✓ ':g.kind==='wrong'?'✗ ':'⏭ '}${esc(g.text)}</div>`);
+  }
+  $(target).innerHTML = rows.join('');
+}
+
+async function onPlay(){
+  if(G.done || clipBusy) return;
+  $('btn-play').disabled = true;
+  const i = G.stage, segs = $('bar').children;
+  for(let k=0;k<=i;k++) segs[k].firstElementChild.style.width = '0';
+  // Animate across all unlocked segments proportionally to cumulative time
+  const cum = G.durs.slice(0, i+1);
+  const total = G.durs[i];
+  try{
+    await playClip(total, p => {
+      const tNow = p*total;
+      for(let k=0;k<=i;k++){
+        const start = k===0 ? 0 : cum[k-1], end = cum[k];
+        const frac = Math.max(0, Math.min(1, (tNow-start)/(end-start)));
+        segs[k].firstElementChild.style.width = (frac*100)+'%';
+      }
+    }, G.startMs || 0);
+  }catch(e){ $('game-status').textContent = 'Playback hiccup — try again. ('+e.message+')'; }
+  if(!G.done) $('btn-play').disabled = false;
+}
+
+function advance(kind, text){
+  G.guesses.push({ kind, text });
+  if(G.stage + 1 >= G.stages){ renderGuesses(); return reveal(false); }
+  G.stage++;
+  renderStage(); renderGuesses();
+  $('game-status').textContent = `Stage ${G.stage+1} unlocked — ${fmtDur(G.durs[G.stage])}.`;
+}
+
+function isCorrect(guess){
+  const t = cur().track;
+  if(guess.id && guess.id === t.id) return true;
+  const gTitle = norm(guess.title);
+  if(!gTitle || gTitle !== norm(t.name)) return false;
+  if(!guess.artists) return true; // free text: title match is enough
+  const ta = t.artists.map(a => norm(a.name));
+  return guess.artists.some(a => ta.includes(norm(a)));
+}
+
+function submitGuess(pick){
+  if(G.done) return;
+  const raw = $('guess').value.trim();
+  const g = pick || (acItems[acIndex] && acOpen ? acItems[acIndex] : null) || (raw ? { title:raw } : null);
+  if(!g) return;
+  closeAC(); $('guess').value = '';
+  const label = g.artists ? `${g.title} — ${g.artists.join(', ')}` : g.title;
+  if(isCorrect(g)){ G.guesses.push({ kind:'right', text:label }); renderGuesses(); reveal(true); }
+  else advance('wrong', label);
+}
+
+function reveal(won){
+  G.done = true; hideMeta = false;
+  setControls(false);
+  const item = cur(), t = item.track;
+  const pts = won ? Math.round(100 * (G.stages - G.stage) / G.stages * (item.tier.mult||1)) : 0;
+  G.score += pts;
+  G.results.push({ title:t.name, artist:t.artists.map(a=>a.name).join(', '), tier:item.tier.name, won, stage:G.stage+1, pts });
+  $('score').textContent = Math.round(G.score);
+  $('guess-area').classList.add('hidden'); $('reveal-area').classList.remove('hidden');
+  renderGuesses('guesses2');
+  const secs = G.durs[G.stage];
+  $('verdict').innerHTML = won
+    ? `<span style="color:var(--good)">Got it in ${fmtDur(secs)}! +${pts}</span>`
+    : `<span style="color:var(--bad)">The song was:</span>`;
+  const img = (t.album.images||[]).slice(-2)[0] || (t.album.images||[])[0];
+  $('rv-img').src = img ? img.url : '';
+  $('rv-title').textContent = t.name;
+  $('rv-artist').textContent = t.artists.map(a=>a.name).join(', ');
+  $('rv-album').textContent = t.album.name + (t.album.release_date ? ' · '+t.album.release_date.slice(0,4) : '');
+  $('btn-full').disabled = false; $('btn-next').disabled = false;
+  $('btn-next').textContent = G.idx+1 >= G.queue.length ? 'See results →' : 'Next →';
+  $('game-status').textContent = '';
+  playFull();
+}
+
+// Full song plays from the start after every round, until you press Next
+let fullPlaying = false;
+async function playFull(){
+  clipAbort = true; allowAudio = true;
+  try{ await player.seek(0); await player.setVolume(volume); await player.resume(); fullPlaying = true; }
+  catch{ fullPlaying = false; }
+  $('btn-full').textContent = fullPlaying ? '⏸ Pause' : '▶ Play the song';
+  renderMark();
+}
+async function toggleFull(){
+  try{
+    if(fullPlaying){ allowAudio = false; await player.pause(); fullPlaying = false; }
+    else { allowAudio = true; await player.setVolume(volume); await player.resume(); fullPlaying = true; }
+  }catch{}
+  $('btn-full').textContent = fullPlaying ? '⏸ Pause' : '▶ Play the song';
+}
+async function stopFull(){
+  fullPlaying = false; allowAudio = false;
+  try{ await player.pause(); await player.setVolume(0); }catch{}
+}
+
+const fmtPos = ms => { const s = Math.round(ms/100)/10; return Math.floor(s/60)+':'+(s%60).toFixed(1).padStart(4,'0'); };
+function renderMark(){
+  const t = cur().track, saved = offsets[t.id];
+  $('mark-note').textContent = saved != null
+    ? `Clips for this song start at ${fmtPos(saved)}.`
+    : 'Silent intro? Press the button the moment the music kicks in.';
+  $('btn-unmark').classList.toggle('hidden', saved == null);
+}
+async function markStart(){
+  const s = await player.getCurrentState();
+  if(!s) return;
+  const t = cur().track;
+  offsets[t.id] = Math.max(0, s.position - 150);
+  store.set('offsets', offsets);
+  renderMark();
+}
+function unmark(){
+  delete offsets[cur().track.id];
+  store.set('offsets', offsets);
+  renderMark();
+}
+
+function finish(){
+  hideMeta = false;
+  stopFull();
+  show('scr-summary');
+  const r = G.results, wins = r.filter(x => x.won).length;
+  $('final-score').textContent = Math.round(G.score);
+  $('final-line').textContent = `${wins} of ${r.length} songs guessed`;
+  $('final-table').innerHTML = r.map(x => `<tr><td>${x.won?'✓':'✗'} ${esc(x.title)}<br><span class="small">${esc(x.artist)} · ${esc(x.tier)}</span></td>
+    <td class="r">${x.won ? 'stage '+x.stage+' · +'+x.pts : '—'}</td></tr>`).join('');
+}
+
+/* ================= AUTOCOMPLETE ================= */
+let acItems = [], acIndex = 0, acOpen = false, acTimer = null, acSeq = 0;
+function closeAC(){ acOpen = false; $('ac-list').classList.add('hidden'); }
+function renderAC(){
+  if(!acItems.length){ closeAC(); return; }
+  acOpen = true;
+  $('ac-list').classList.remove('hidden');
+  $('ac-list').innerHTML = acItems.map((it,i) => `<div class="ac-item ${i===acIndex?'hl':''}" data-i="${i}">${esc(it.title)} <span>— ${esc(it.artists.join(', '))}</span></div>`).join('');
+  $('ac-list').querySelectorAll('.ac-item').forEach(el => el.onmousedown = e => { e.preventDefault(); submitGuess(acItems[+el.dataset.i]); });
+}
+$('guess').addEventListener('input', () => {
+  clearTimeout(acTimer);
+  const q = $('guess').value.trim();
+  if(q.length < 2){ acItems = []; closeAC(); return; }
+  acTimer = setTimeout(async () => {
+    const my = ++acSeq;
+    try{
+      const j = await api('/search?type=track&limit=8&q='+encodeURIComponent(q));
+      if(my !== acSeq) return;
+      const seen = new Set();
+      acItems = ((j.tracks && j.tracks.items) || []).map(t => ({ id:t.id, title:t.name, artists:t.artists.map(a=>a.name) }))
+        .filter(it => { const k = norm(it.title)+'|'+norm(it.artists[0]); if(seen.has(k)) return false; seen.add(k); return true; });
+      acIndex = 0; renderAC();
+    }catch{}
+  }, 250);
+});
+$('guess').addEventListener('keydown', e => {
+  if(e.key === 'ArrowDown' && acOpen){ e.preventDefault(); acIndex = (acIndex+1) % acItems.length; renderAC(); }
+  else if(e.key === 'ArrowUp' && acOpen){ e.preventDefault(); acIndex = (acIndex-1+acItems.length) % acItems.length; renderAC(); }
+  else if(e.key === 'Enter'){ e.preventDefault(); submitGuess(); }
+  else if(e.key === 'Escape'){ closeAC(); }
+});
+$('guess').addEventListener('blur', () => setTimeout(closeAC, 150));
+
+/* ================= WIRING ================= */
+$('btn-login').onclick = login;
+$('btn-logout').onclick = () => { store.del('tok'); try{ player && player.disconnect(); }catch{} location.reload(); };
+$('btn-start').onclick = startGame;
+$('btn-play').onclick = onPlay;
+$('btn-submit').onclick = () => submitGuess();
+// Skip: use up this attempt and unlock the next, longer clip (on the last stage it reveals the song)
+$('btn-skip').onclick = () => { if(!G.done){ closeAC(); advance('skip', 'Skipped'); } };
+// Give up: reveal the song now and play it in full
+$('btn-giveup').onclick = () => {
+  if(G.done) return;
+  closeAC();
+  G.guesses.push({ kind:'skip', text:'Gave up' });
+  renderGuesses(); reveal(false);
+};
+$('btn-full').onclick = toggleFull;
+$('btn-mark').onclick = markStart;
+$('btn-unmark').onclick = unmark;
+$('btn-next').onclick = async () => { $('btn-next').disabled = true; await stopFull(); G.idx++; if(G.idx >= G.queue.length) finish(); else loadSong(); };
+$('btn-quit').onclick = () => { clipAbort = true; stopFull(); hideMeta = false; show('scr-menu'); renderMenu(); };
+$('btn-again').onclick = () => { show('scr-menu'); renderMenu(); };
+document.addEventListener('keydown', e => {
+  if(e.code === 'Space' && document.activeElement !== $('guess') && !$('scr-game').classList.contains('hidden')){ e.preventDefault(); onPlay(); }
+});
+
+/* ================= BOOT ================= */
+(async function boot(){
+  $('redir').textContent = REDIRECT;
+  $('cid').value = store.get('cid', '');
+  if(CLIENT_ID){
+    store.set('cid', CLIENT_ID);
+    $('cid').classList.add('hidden');
+    document.querySelector('#scr-setup ol').classList.add('hidden');
+    $('btn-login').classList.add('grow');
+  }
+  if(location.protocol === 'file:' || location.origin === 'null' || !/^https?:$/.test(location.protocol) || location.pathname.endsWith('srcdoc')){
+    $('redir').textContent = 'http://127.0.0.1:8888/song-guesser.html';
+    show('scr-setup');
+    $('setup-warn').innerHTML = 'Open this page through a local server, not by double-clicking it. In this folder run <code>python -m http.server 8888 --bind 127.0.0.1</code> and go to <code>http://127.0.0.1:8888/song-guesser.html</code>.';
+    $('btn-login').disabled = true; return;
+  }
+  if(location.hostname === 'localhost'){
+    $('setup-warn').innerHTML = 'Spotify doesn\'t accept "localhost" — use <code>http://127.0.0.1'+(location.port?':'+location.port:'')+location.pathname+'</code> instead.';
+  }
+  try{ await handleCallback(); }catch(e){ show('scr-setup'); $('setup-warn').textContent = e.message; return; }
+  if(store.get('tok')){
+    try{ await getToken(); show('scr-menu'); renderMenu(); loadSDK(); return; }
+    catch{ store.del('tok'); }
+  }
+  show('scr-setup');
+})();
+</script>
+</body>
+</html>
